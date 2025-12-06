@@ -21,6 +21,11 @@
       "recommended": true
     }
   },
+  "css": {
+    "parser": {
+      "cssModules": true
+    }
+  },
   "javascript": {
     "formatter": {
       "quoteStyle": "double",
