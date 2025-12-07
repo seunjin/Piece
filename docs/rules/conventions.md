@@ -3,6 +3,15 @@
 이 문서는 프로젝트의 모든 코드 작성 시 준수해야 할 규칙을 정의합니다.
 AI는 코드를 생성할 때 이 규칙을 엄격히 따라야 합니다.
 
+## 0. **Iron Rules (절대 원칙)**
+
+1.  **Specification First:** 구현 전 반드시 `docs/rules/tech-spec.md`와 `docs/rules/conventions.md`를 먼저 확인하고, 규칙에 어긋나는 코드를 작성하지 않습니다. 문서와 충돌 시 사용자에게 먼저 알립니다.
+2.  **JSDoc in Korean:** 모든 함수, 인터페이스, 복잡한 로직에는 **반드시 한글로 JSDoc 주석**을 작성합니다.
+    - `@param`, `@returns` 등을 활용하여 명확히 기술합니다.
+3.  **No Magic Numbers:** 하드코딩된 값(숫자, 문자열) 사용을 지양하고 상수로 정의합니다.
+
+---
+
 ## 1. 파일 및 폴더 구조 (File Structure)
 
 ### 1.1 기본 구조
@@ -26,15 +35,47 @@ AI는 코드를 생성할 때 이 규칙을 엄격히 따라야 합니다.
 - **함수/변수명:** camelCase
 - **상수(Constant):** UPPER_SNAKE_CASE
 
-## 2. 컴포넌트 작성 규칙 (Component Architecture)
+---
 
-### 2.1 Server vs Client
+## 2. 주석 작성 규칙 (JSDoc Policy)
+
+AI는 코드 생성 시 다음 주석 규칙을 준수해야 합니다.
+
+### 2.1 적용 대상
+- Export 되는 모든 함수 및 클래스
+- Interface 및 Type 정의
+- 복잡한 비즈니스 로직
+
+### 2.2 작성 언어
+- **한국어(Korean)** 를 기본으로 사용합니다.
+
+### 2.3 예시
+
+```typescript
+/**
+ * 사용자의 프로필 정보를 업데이트합니다.
+ * DB 업데이트 후 캐시를 무효화합니다.
+ *
+ * @param userId - 업데이트할 사용자의 UUID
+ * @param payload - 변경할 프로필 데이터
+ * @returns 성공 여부객체 ({ success: boolean })
+ */
+export async function updateUserProfile(userId: string, payload: ProfileData) {
+  // ...
+}
+```
+
+---
+
+## 3. 컴포넌트 작성 규칙 (Component Architecture)
+
+### 3.1 Server vs Client
 
 - **기본은 Server Component:** 모든 컴포넌트는 기본적으로 Server Component로 작성한다.
 - **"use client":** `useState`, `useEffect`, 이벤트 핸들러(`onClick`)가 필요한 **최하위(Leaf) 컴포넌트**에만 명시한다.
 - **Data Passing:** Server Component에서 데이터를 fetch하고, Client Component에는 props로 전달하는 패턴을 지향한다.
 
-### 2.2 작성 스타일
+### 3.2 작성 스타일
 
 - **Named Export:** `export default` 대신 `export const`를 사용한다. (Refactoring 및 자동완성 용이성)
 - **Props Interface:** 컴포넌트 Props는 반드시 `interface`로 정의하며, 이름은 `Props` 또는 `[Component]Props`로 한다.
@@ -46,6 +87,10 @@ interface NewsCardProps {
   title: string;
 }
 
+/**
+ * 뉴스 카드 컴포넌트
+ * 뉴스 목록 등에서 개별 아이템을 표시할 때 사용합니다.
+ */
 export function NewsCard({ title }: NewsCardProps) {
   return <div>{title}</div>;
 }
@@ -55,76 +100,46 @@ const NewsCard = ({ title }: any) => { ... }
 export default NewsCard;
 ```
 
-## 3. 상태 관리 규칙 (State Management)
+---
 
-- URL State (nuqs): 검색어, 필터, 페이지네이션 등 "공유 가능한 상태"는 무조건 URL Query Parameter로 관리한다.
+## 4. 상태 관리 규칙 (State Management)
 
-- Server State: 데이터는 DB에서 가져온 시점의 상태를 유지하며, 변경이 필요하면 Server Action을 통해 재검증(revalidatePath)한다.
+- **URL State (nuqs):** 검색어, 필터, 페이지네이션 등 "공유 가능한 상태"는 무조건 URL Query Parameter로 관리한다.
+- **Server State:** 데이터는 DB에서 가져온 시점의 상태를 유지하며, 변경이 필요하면 Server Action을 통해 재검증(revalidatePath)한다.
+- **Client State (useState):** UI의 일시적인 상태(모달 열림/닫힘, 입력 폼 값)에만 사용한다.
+- **Global State (Zustand):** 정말 필요한 전역 상태(예: 유저 세션 정보)가 아니면 사용을 지양한다.
 
-- Client State (useState): UI의 일시적인 상태(모달 열림/닫힘, 입력 폼 값)에만 사용한다.
+---
 
-- Global State (Zustand): 정말 필요한 전역 상태(예: 유저 세션 정보)가 아니면 사용을 지양한다.
+## 5. 데이터 페칭 및 로직 (Logic Flow)
 
-## 4. 데이터 페칭 및 로직 (Logic Flow)
-
-### 4.1 "DAL -> Action -> UI" 패턴
+### 5.1 "DAL -> Action -> UI" 패턴
 
 - **Direct DB Access 금지**: 컴포넌트 내부에서 supabase.from(...)을 직접 호출하지 않는다. 반드시 services/ 폴더의 함수를 호출한다.
+- **API Route 사용 금지**: 내부 로직 처리를 위해 app/api/를 만들지 않는다. 반드시 **Server Actions**를 사용한다.
 
-- API Route 사용 금지: 데이터 페칭을 위해 app/api/를 만들지 않는다. Server Component에서 DAL을 직접 부르거나, Server Action을 사용한다.
-
-### 4.2 데이터 변경 (Mutation) 및 응답 구조
+### 5.2 데이터 변경 (Mutation) 및 응답 구조
 
 - 반드시 **Server Actions**를 사용한다.
 - **공통 응답 타입 (`ApiResponse<T>`) 사용:**
+  - `lib/types.ts`에 정의된 구조를 따른다.
 
-  - `lib/types.ts`에 정의된 Discriminated Union 패턴을 사용한다.
-  - **구조:**
+---
 
-    ```typescript
-    // 1. 성공했을 때의 형태
-
-    export type ApiSuccess<T> = {
-      success: true; // 판별자 (Discriminator)
-      data: T; // 성공 시엔 데이터가 무조건 있음
-      message?: string; // (선택) "저장되었습니다" 같은 토스트 메시지용
-    };
-
-    // 2. 실패했을 때의 형태
-    export type ApiError = {
-      success: false; // 판별자
-      error: string; // 실패 시엔 에러 메시지가 무조건 있음
-      code?: string; // (선택) 에러 코드 (예: 'AUTH_REQUIRED')
-      validationFields?: Record<string, string[] | undefined>; // (선택) 폼 필드별 에러 (Zod용)
-    };
-
-    // 3. 최종 공통 응답 타입 (두 가지를 합침)
-    export type ApiResponse<T = void> = ApiSuccess<T> | ApiError;
-    ```
-
-- **Action 내부 흐름 표준:**
-  1.  **Validation:** Zod로 검증 실패 시 `{ success: false, error: '입력값 오류', validationFields: ... }` 반환.
-  2.  **Try-Catch:** 로직 수행 중 에러 발생 시 `{ success: false, error: error.message }` 반환.
-  3.  **Success:** 성공 시 `{ success: true, data: result }` 반환.
-
-## 5. 스타일링 (Tailwind CSS & Shadcn)
+## 6. 스타일링 (Tailwind CSS & Shadcn)
 
 - **Utility First:** CSS 파일 생성 금지 (Tailwind 클래스 사용).
 - **cn() 사용:** 클래스 병합 시 `clsx` + `tailwind-merge` 조합인 `cn()` 유틸리티 사용.
 - **Color Variables:** 색상 하드코딩 금지. `bg-primary`, `text-muted-foreground` 등 디자인 시스템 변수 사용.
 
-## 6. 타입스크립트 (TypeScript)
+---
+
+## 7. 타입스크립트 (TypeScript)
 
 - **No Any:** `any` 타입 사용 금지.
 - **Supabase Types:** DB 데이터 타입은 자동 생성된 `Database` 타입을 import 하여 사용.
 
-## 7. 경로 별칭 (Import Aliases)
-
-- 상대 경로(../../components) 대신 절대 경로 별칭(@/components)을 사용한다.
-- app/ -> @/app/
-- components/ -> @/components/
-- lib/ -> @/lib/
-- services/ -> @/services/
+---
 
 ## 8. Git & Commit Convention
 
@@ -143,12 +158,14 @@ export default NewsCard;
 
 ### 8.2 작성 규칙
 
-- **Subject:** 50자 이내, 명령문/현재시제 사용 (예: "change" O, "changed" X).
-- **Language:** 한글/영어 혼용 가능하나, 핵심 키워드는 영어 권장.
+- **Subject:** 50자 이내, 명령문/현재시제 사용.
+- **Language:** **한글** 작성을 권장합니다. (팀 내 가독성)
 - **Example:**
   - `feat(quiz): 퀴즈 정답 체크 로직 구현`
   - `fix(auth): 로그인 세션 만료 버그 수정`
   - `chore: biome 설정 파일 업데이트`
+
+---
 
 ## 9. Git Branching Strategy (Solo Flow)
 
@@ -156,7 +173,7 @@ export default NewsCard;
 
 ### 9.1 브랜치 구조
 - **main:** 언제나 배포 가능한 상태(Production-ready)여야 합니다.
-- **feat/*:** 새로운 기능 개발 (예: `feat/setup-supabase`, `feat/auth-ui`) 
+- **feat/*:** 새로운 기능 개발 (예: `feat/setup-supabase`, `feat/auth-ui`)
 - **fix/*:** 버그 수정 (예: `fix/login-error`)
 - **chore/*:** 설정 변경, 리팩토링 등 (예: `chore/update-deps`)
 
@@ -164,5 +181,4 @@ export default NewsCard;
 1. `main`에서 새로운 브랜치 생성: `git checkout -b feat/my-feature`
 2. 작업 및 커밋 (Conventional Commits 준수)
 3. 작업 완료 후 Push: `git push origin feat/my-feature`
-4. (선택) GitHub에서 Pull Request 생성 및 Self-Review (습관화 권장)
-5. `main`으로 Merge 후 브랜치 삭제
+4. `main`으로 Merge 후 브랜치 삭제
